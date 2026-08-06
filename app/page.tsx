@@ -1,65 +1,117 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { generateRobloxUI } from "@/lib/roblox/transform";
+import type { DSLBlueprint } from "@/lib/dsl/schema";
+import PreviewSection from "@/components/PreviewSection";
+import UploadSection from "@/components/UploadSection";
+import PromptSection from "@/components/PromptSection";
+import GenerateButton from "@/components/GenerateButton";
+import ResultSection from "@/components/ResultSection";
+import LayoutContainer from "@/components/LayoutContainer";
+import SectionWrapper from "@/components/SectionWrapper";
+import { theme } from "@/theme";
+
+type GenerateResponse = { dsl: DSLBlueprint };
+
+export default function HomePage() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [robloxCode, setRobloxCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState("ja");
+  const [userPrompt, setUserPrompt] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleFileSelect = (file: File | null) => {
+    if (file && file.type !== "image/png" && file.type !== "image/jpeg") {
+      setError("PNGまたはJPEG形式の画像を選択してください。");
+      setSelectedFile(null);
+      setPreview(null);
+      return;
+    }
+
+    setSelectedFile(file);
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("language", language);
+      formData.append("userPrompt", userPrompt);
+
+      const response = await fetch("/api/generate", { method: "POST", body: formData });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        setError(errorBody?.error || "生成APIでエラーが発生しました。");
+        return;
+      }
+
+      const json = (await response.json()) as GenerateResponse;
+      if (!json.dsl) {
+        setError("DSLが返されませんでした。");
+        return;
+      }
+
+      setResult(json);
+      setRobloxCode(generateRobloxUI(json.dsl));
+      setSuccess("UI設計を生成しました。");
+    } catch {
+      setError("ネットワークエラーが発生しました。再度お試しください。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <LayoutContainer>
+      <SectionWrapper>
+        <h1 style={{ fontSize: "32px", marginBottom: "20px" }}>UI Blueprint Generator</h1>
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <label style={{ marginRight: "10px" }}>出力言語</label>
+        <select value={language} onChange={(event) => setLanguage(event.target.value)} style={{ padding: "8px", borderRadius: "8px", background: theme.panel, color: theme.text, border: `1px solid ${theme.border}` }}>
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
+      </SectionWrapper>
+
+      <SectionWrapper><PromptSection userPrompt={userPrompt} onChange={setUserPrompt} /></SectionWrapper>
+      <SectionWrapper>
+        <div style={{ background: theme.panel, padding: "20px", borderRadius: "12px", border: `1px solid ${theme.border}`, color: theme.text }}>
+          <p style={{ marginBottom: "12px", fontSize: "18px" }}>参考にするUI画像</p>
+          <UploadSection onFileSelect={handleFileSelect} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </SectionWrapper>
+      <SectionWrapper><PreviewSection preview={preview} /></SectionWrapper>
+      <SectionWrapper><GenerateButton onClick={handleUpload} disabled={!selectedFile || loading} loading={loading} /></SectionWrapper>
+
+      {(error || success) && (
+        <SectionWrapper>
+          {error && <div style={{ background: theme.errorBg, color: theme.errorText, padding: "12px 16px", borderRadius: "8px", border: "1px solid #ffcccc", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{error}</div>}
+          {success && <div style={{ background: theme.successBg, color: theme.successText, padding: "12px 16px", borderRadius: "8px", border: "1px solid #b3ffcc" }}>{success}</div>}
+        </SectionWrapper>
+      )}
+
+      <SectionWrapper><ResultSection dsl={result?.dsl} robloxCode={robloxCode} loading={loading} /></SectionWrapper>
+    </LayoutContainer>
   );
 }

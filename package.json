@@ -1,7 +1,26 @@
 {
-  "name": "ui-blueprint-generator",
+  "name": "roblox-ui-blueprint-generator",
   "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chizmo-byte/roblox-ui-blueprint-generator.git"
+  },
+  "description": "参考UI画像から Roblox の UI 設計データ（DSL）と Luau の LocalScript を生成するツール。",
+  "keywords": [
+    "roblox",
+    "roblox-studio",
+    "luau",
+    "ui-design",
+    "ui-generator",
+    "design-to-code",
+    "nextjs",
+    "llm"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
