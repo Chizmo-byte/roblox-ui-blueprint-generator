@@ -12,7 +12,7 @@ const errorResponses: Record<string, { message: string; status: number }> = {
   IMAGE_TOO_LARGE: { message: "画像は5MB以下にしてください。", status: 400 },
   UNSUPPORTED_IMAGE_TYPE: { message: "PNGまたはJPEG形式の画像を選択してください。", status: 400 },
   INVALID_IMAGE_DATA: { message: "画像データを確認できませんでした。", status: 400 },
-  INVALID_DSL: { message: "AIから有効なUI設計データを取得できませんでした。もう一度お試しください。", status: 422 },
+  INVALID_DSL: { message: "AIから有効なUI設計データを取得できませんでした。もう一度お試しください。（モデルの生の応答を開発サーバーのターミナルに出力しています）", status: 422 },
   AI_PROVIDER_NOT_CONFIGURED: { message: "APIキーが設定されていません。.env.local の LLM_API_KEY を設定してください。", status: 503 },
   AI_MODEL_NOT_CONFIGURED: { message: "使用するモデルが設定されていません。.env.local の LLM_MODEL を設定してください（例: gpt-4o-mini、gemini-3.6-flash、claude-haiku-4-5）。", status: 503 },
   AI_PROVIDER_INVALID: { message: "AIサービスの設定が正しくありません。LLM_PROVIDER（openai-compatible / anthropic）と LLM_BASE_URL の値を確認してください。", status: 503 },
@@ -26,6 +26,9 @@ const errorResponses: Record<string, { message: string; status: number }> = {
 };
 
 export async function POST(request: Request) {
+  // DSLの解析に失敗したとき、モデルが実際に何を返したかを診断できるよう保持する。
+  let rawDsl: string | undefined;
+
   try {
     const formData = await request.formData();
     const formFile = formData.get("file");
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
     const userPrompt = typeof userPromptValue === "string" ? userPromptValue.slice(0, 2000) : "";
     const language = languageValue === "en" ? "en" : "ja";
 
-    const rawDsl = await callLLM({
+    rawDsl = await callLLM({
       imageBase64: image.rawBase64,
       imageMimeType: image.mimeType,
       rules: RobloxUIRules,
@@ -51,6 +54,17 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof LLMError) {
       console.error("LLM request failed", { code: error.code, status: error.status, detail: error.detail });
+    }
+
+    // モデルはJSONを返したが形式が合わなかった場合、生の応答をサーバー側のログに出す。
+    // 原因の切り分けにはこれが最も有用で、ブラウザには送らないため安全。
+    if (error instanceof Error && error.message === "INVALID_DSL" && rawDsl !== undefined) {
+      console.error(
+        "\n===== DSL解析に失敗しました。モデルの生の応答 =====\n" +
+        rawDsl.slice(0, 5000) +
+        (rawDsl.length > 5000 ? `\n…（全${rawDsl.length}文字のうち先頭5000文字）` : "") +
+        "\n================================================\n",
+      );
     }
 
     const response = error instanceof Error ? errorResponses[error.message] : undefined;

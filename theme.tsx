@@ -7,6 +7,7 @@ export const theme = {
   border: "#2A2A45",            // パネル境界線
   surface: "#fafafa",           // 明るいカード背景（ResultSection）
   surfaceBorder: "#e5e5e5",     // 明るいカード境界線
+  surfaceText: "#1a1a1a",       // 明るい背景の上の文字色（指定しないと白文字を継承して読めなくなる）
   errorBg: "#ffe5e5",
   errorText: "#b30000",
   successBg: "#e6ffed",

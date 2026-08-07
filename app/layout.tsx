@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UI Blueprint Generator",
+  title: "Roblox UI Blueprint Generator",
   description:
-    "参考UI画像から Roblox の UI 設計データ（DSL）と Luau コードを生成するツール。",
-  applicationName: "UI Blueprint Generator",
+    "参考UI画像から Roblox ゲーム用の UI 設計データ（DSL）を生成し、プレビューで確認できるツール。",
+  applicationName: "Roblox UI Blueprint Generator",
   openGraph: {
-    title: "UI Blueprint Generator",
+    title: "Roblox UI Blueprint Generator",
     description:
-      "参考UI画像から Roblox の UI 設計データ（DSL）と Luau コードを生成するツール。",
+      "参考UI画像から Roblox ゲーム用の UI 設計データ（DSL）を生成し、プレビューで確認できるツール。",
     type: "website",
   },
 };

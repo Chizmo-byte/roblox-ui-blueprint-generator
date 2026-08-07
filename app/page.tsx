@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { generateRobloxUI } from "@/lib/roblox/transform";
 import type { DSLBlueprint } from "@/lib/dsl/schema";
 import PreviewSection from "@/components/PreviewSection";
 import UploadSection from "@/components/UploadSection";
 import PromptSection from "@/components/PromptSection";
+import ImagePromptBuilder from "@/components/ImagePromptBuilder";
 import GenerateButton from "@/components/GenerateButton";
 import ResultSection from "@/components/ResultSection";
 import LayoutContainer from "@/components/LayoutContainer";
@@ -18,7 +18,6 @@ export default function HomePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
-  const [robloxCode, setRobloxCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState("ja");
   const [userPrompt, setUserPrompt] = useState("");
@@ -71,7 +70,6 @@ export default function HomePage() {
       }
 
       setResult(json);
-      setRobloxCode(generateRobloxUI(json.dsl));
       setSuccess("UI設計を生成しました。");
     } catch {
       setError("ネットワークエラーが発生しました。再度お試しください。");
@@ -95,6 +93,7 @@ export default function HomePage() {
       </SectionWrapper>
 
       <SectionWrapper><PromptSection userPrompt={userPrompt} onChange={setUserPrompt} /></SectionWrapper>
+      <SectionWrapper><ImagePromptBuilder /></SectionWrapper>
       <SectionWrapper>
         <div style={{ background: theme.panel, padding: "20px", borderRadius: "12px", border: `1px solid ${theme.border}`, color: theme.text }}>
           <p style={{ marginBottom: "12px", fontSize: "18px" }}>参考にするUI画像</p>
@@ -111,7 +110,7 @@ export default function HomePage() {
         </SectionWrapper>
       )}
 
-      <SectionWrapper><ResultSection dsl={result?.dsl} robloxCode={robloxCode} loading={loading} /></SectionWrapper>
+      <SectionWrapper><ResultSection dsl={result?.dsl} loading={loading} /></SectionWrapper>
     </LayoutContainer>
   );
 }

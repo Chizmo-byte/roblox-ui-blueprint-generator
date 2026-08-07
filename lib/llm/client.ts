@@ -1,3 +1,5 @@
+import { DefaultDSL } from "@/lib/dsl/schema";
+
 type ImageMimeType = "image/jpeg" | "image/png";
 type Provider = "openai-compatible" | "anthropic";
 
@@ -32,17 +34,37 @@ function isRecord(value: unknown): value is ApiRecord {
 
 function buildSystemPrompt(language: GenerateDSLParams["language"]): string {
   const outputLanguage = language === "ja" ? "Japanese" : "English";
-  return `You create Roblox UI blueprints from a reference image. Return only one valid JSON object that satisfies the DSLBlueprint structure. Do not use Markdown code fences or add explanatory text. Follow the supplied Roblox UI rules. Use ${outputLanguage} for human-readable labels where relevant.`;
+  return `You convert a UI reference image into a Roblox UI design blueprint.
+
+Return ONLY one JSON object. No Markdown code fences. No explanation before or after.
+
+The object MUST have exactly these 9 top-level keys, and nothing else:
+Screen, Layout, Spacing, Color, Typography, Visual, Components, Interactions, RobloxRules
+
+CRITICAL: Do NOT return a Roblox Instance tree. Objects containing "className",
+"properties", or "children" are wrong and will be rejected. You are producing a
+design specification, not Roblox instances.
+
+Copy the structure of the template you are given exactly. Keep every key and every
+nesting level. Change only the VALUES so they describe the reference image.
+
+Use ${outputLanguage} for human-readable labels where relevant.`;
 }
 
 function buildUserPrompt(params: GenerateDSLParams): string {
-  return `Analyze the attached UI reference image and produce one complete DSLBlueprint JSON object.
+  return `Analyze the attached UI reference image, then return this exact JSON structure
+with the values adjusted to describe that image.
+
+TEMPLATE (copy this shape exactly, change only the values):
+${JSON.stringify(DefaultDSL, null, 2)}
+
+Roblox UI rules to respect when choosing values:
+${JSON.stringify(params.rules, null, 2)}
 
 Additional user requirements:
 ${params.userPrompt || "None"}
 
-Roblox UI rules:
-${JSON.stringify(params.rules, null, 2)}`;
+Remember: return the template's structure with your values. Do not invent a different shape.`;
 }
 
 function redactSecrets(text: string): string {
@@ -138,7 +160,7 @@ async function callOpenAICompatible(params: GenerateDSLParams): Promise<string> 
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
-      max_tokens: 2_000,
+      max_tokens: 8_000,
       messages: [
         { role: "system", content: buildSystemPrompt(params.language) },
         {
@@ -164,7 +186,7 @@ async function callClaude(params: GenerateDSLParams): Promise<string> {
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
     body: JSON.stringify({
       model: getModel(),
-      max_tokens: 2_000,
+      max_tokens: 8_000,
       system: buildSystemPrompt(params.language),
       messages: [{
         role: "user",

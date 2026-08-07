@@ -1,9 +1,9 @@
-# UI Blueprint Generator
+# Roblox UI Blueprint Generator
 
-**Turn a UI reference image into a Roblox UI blueprint (JSON DSL) and ready-to-paste Luau LocalScript code.**
-Upload a screenshot of a UI you like, add optional instructions, and get back a structured design spec plus generated Roblox UI code that follows a consistent set of layout, scaling, and ZIndex rules.
+**Turn a UI reference image into a reusable design spec for your Roblox game.**
+Upload a screenshot of a UI you like and get back a structured design blueprint (JSON) — colors, spacing, typography, corner radius, interaction feel — plus a live preview so you can check the design before you build anything.
 
-> UI reference image → LLM (OpenAI / Anthropic) → DSL Blueprint (JSON) → Luau LocalScript
+> UI reference image → LLM → DSL Blueprint (JSON) → Preview → hand to your AI coding tool
 
 日本語の詳細は以下をご覧ください。
 
@@ -11,23 +11,49 @@ Upload a screenshot of a UI you like, add optional instructions, and get back a 
 
 ## これは何か
 
-Robloxゲーム開発でUIを作るときの「デザインの言語化」と「実装の初速」を助けるツールです。
+**Robloxゲームの「UIデザインの決めごと」を、画像1枚から作るツールです。**
 
-参考にしたいUIの画像をアップロードすると、AIがそのUIを解析して **DSL（UI設計データ / JSON）** に変換します。さらにそのDSLから、Roblox Studioにそのまま貼り付けられる **Luau の LocalScript** を自動生成します。
+参考にしたいUIの画像をアップロードすると、AIがそれを解析して **DSL（UI設計データ / JSON）** に変換します。生成されたDSLは画面上でプレビューでき、そのままAIコーディングツールへの指示書として使えます。
 
-「なんとなくいい感じのUI」を、余白・角丸・配色・フォントサイズ・ZIndexといった**再現可能な数値仕様**に落とし込むのが目的です。
+### 何のためにあるか
+
+ゲームのUIは、画面ごとにバラバラだと安っぽく見えます。かといって「配色は何色、余白は何px」を毎回決めるのは大変です。
+
+このツールは、その決めごとを**1回だけ作って、以降ずっと使い回す**ためのものです。
+
+```
+1. 好きなUIの画像から DSL を作る（このツール）
+2. プレビューで配色と余白を確認する（このツール）
+3. AIに「このDSLに従ってインベントリ画面を作って」と頼む
+4. 画面が増えてもDSLは同じなので、ゲーム全体で見た目が揃う
+```
+
+メニューの中身（強化項目、機能）は開発中どんどん変わりますが、**デザインの決めごとは変わりません。** その変わらない部分だけを切り出したのがDSLです。
 
 ### 何が出てくるか
 
 | 出力 | 内容 |
 |---|---|
-| **DSL（JSON）** | Screen / Layout / Spacing / Color / Typography / Visual / Components / Interactions / RobloxRules の9セクションからなるUI設計データ。コピー・ダウンロード可能 |
-| **Luauコード** | 上記DSLから生成される LocalScript。ScreenGui・サイドバー・パネル・タイトル・ボタン（ホバーTween付き）を構築。コピー・ダウンロード可能 |
+| **DSL（JSON）** | Screen / Layout / Spacing / Color / Typography / Visual / Components / Interactions / RobloxRules の9セクション。コピー・ダウンロード可能 |
+| **プレビュー** | DSLの値だけで描画したUIの近似表示。実装前に配色と余白のバランスを確認できる |
 
 ### 何が出てこないか
 
-- 完成したゲームUIそのものではありません。**土台と設計の指針**を出すツールです
-- サーバーサイドの処理（RemoteEvent のハンドラ、購入処理など）は生成しません。生成コードにもその旨のコメントが入ります
+- **Roblox のコードは生成しません。** DSLをAIコーディングツールに渡して実装してもらう想定です
+- 完成したゲームUIそのものではありません。**デザインの仕様**を出すツールです
+
+> **なぜコードを生成しないのか**
+> 以前は骨組みのLocalScriptを生成していましたが、どんな画像を入れても同じ構造しか出ないうえ、AIに渡す場合はDSLのほうが情報量が多いため削除しました。コード生成はAIの得意分野なので、このツールは「AIに渡す仕様を正確に作る」ことに専念します。
+
+### プレビューについて
+
+DSLの値のみで描画しています。**Roblox の描画を厳密に再現するものではありません。**
+
+- フォントは Roblox の Gotham ではなくブラウザのものになります
+- 画面比率によるスケーリング挙動は再現しません
+- 表示される画面構成は、デザインを確認するための代表例です
+
+目的は「配色と余白のバランスが破綻していないか」を実装前に判断することです。
 
 ---
 
@@ -102,10 +128,25 @@ LLM_API_KEY=sk-ant-...
 
 1. **出力言語**を選ぶ（日本語 / English）
 2. **追加の指示**を入力（任意）— 例：「丸みのあるボタン、余白は広め、明るい配色にしたい」
-3. **参考にするUI画像**をアップロード（PNG / JPEG、5MBまで）
-4. **「UI設計を生成」**を押す
-5. 生成された **DSL** と **Luauコード** をコピー、またはダウンロード
-6. Luauコードを Roblox Studio の `StarterPlayer > StarterPlayerScripts` などに LocalScript として貼り付け
+3. 参考画像がなければ、**「参考にする画像がない場合」**を開いて画像生成AI用のプロンプトを作る（後述）
+4. **参考にするUI画像**をアップロード（PNG / JPEG、5MBまで）
+5. **「UI設計を生成」**を押す
+6. **プレビュー**で配色と余白を確認する。イメージと違えば、別の画像や指示で再生成
+7. 納得したら **DSL** をコピー、またはダウンロード
+8. AIコーディングツールにDSLを渡して「この仕様で◯◯画面を作って」と依頼する
+
+### 参考画像がない場合
+
+「好きなUIの画像を用意する」が最初の壁になりがちなので、**画像そのものを作るための支援**を用意しています。
+
+1. 作りたい画面のイメージを自由に書く（例：宇宙をテーマにした暗い配色のショップ画面）
+2. 必要な部品にチェックを入れる（サイドバー、一覧リスト、詳細パネル、アクションボタンなど8種類）
+3. 出来上がった英語のプロンプトをコピーし、好きな画像生成AIに貼り付ける
+4. 生成された画像をこのツールにアップロードする
+
+**自分で作った画像なら、必要な部品が確実に写っています。** 「ショップの画像しか手元にないのにインベントリ画面を作りたい」といった不一致が起きません。
+
+この機能はブラウザ内で完結し、APIを消費しません。何度でも自由に試せます。
 
 ---
 
@@ -140,14 +181,19 @@ Roblox実装の基準となるルール辞書は `lib/roblox/rules.ts` にあり
 app/
   api/generate/route.ts   API本体：画像受信 → LLM呼び出し → DSL返却
   page.tsx                画面全体の状態管理
-components/               UI部品（アップロード、プレビュー、結果表示など）
+components/
+  ImagePromptBuilder.tsx  参考画像を作るためのプロンプト組み立てUI
+  DesignPreview.tsx       DSLの値でUIを近似描画するプレビュー
+  DSLViewer.tsx           DSLの表示・コピー・ダウンロード
+  ...                     アップロード、画像プレビューなど
 lib/
   image/parser.ts         画像の検証（サイズ・MIME・マジックバイト）
+  image/promptBuilder.ts  部品リストと画像生成プロンプトの組み立て
   llm/client.ts           OpenAI互換 / Anthropic クライアントとエラー分類
   dsl/schema.ts           DSLの型定義と既定値（DefaultDSL）
   dsl/parse.ts            LLM出力のパース・既定値補完・厳格な型検証
-  roblox/rules.ts         Roblox UI ルール辞書
-  roblox/transform.ts     DSL → Luau LocalScript 変換
+  dsl/style.ts            DSL → 描画用の値へ解決（色・角丸・余白など）
+  roblox/rules.ts         Roblox UI ルール辞書（AIへのプロンプトに使用）
 theme.tsx                 アプリ側UIのカラーテーマ
 ```
 
@@ -155,7 +201,8 @@ theme.tsx                 アプリ側UIのカラーテーマ
 
 - アップロード画像は**マジックバイトで実体を検証**し、宣言されたMIMEタイプと一致しない場合は拒否します（5MB上限）
 - LLMの出力は既定値で補完したうえで**厳格に型検証**します。型が不正な値は補正で隠さずエラーにします
-- Luauコード生成時、DSL由来の値は**数値のクランプ・カラーコードの正規表現検証・フォント名のマッピング**を通します。不正なDSLから実行可能なLuauが注入されることを防ぎます
+- プレビュー描画時、DSL由来の値は**数値のクランプとカラーコードの正規表現検証**を通します。想定外の文字列がスタイルに紛れ込むことを防ぎます
+- APIキーは環境変数からのみ読み込み、エラーメッセージに含まれる可能性のあるトークンは伏せ字にします
 
 ---
 
@@ -185,11 +232,17 @@ npm run lint    # ESLint
 ### 生成
 
 - [ ] DSLが生成される
-- [ ] Luauコードが生成される
 - [ ] 生成中にローディング表示が出る
 - [ ] 「追加の指示」の内容が結果に反映される
 - [ ] 出力言語の切り替え（日本語 / English）が効く
 - [ ] **生成結果が毎回ほぼ同じ既定値になっていない**（モデルが画像を読めていない兆候）
+
+### プレビュー
+
+- [ ] アップロードした画像の配色がプレビューに反映されている
+- [ ] 角丸・余白・文字サイズが画像の印象と大きくズレていない
+- [ ] ボタンにマウスを乗せると拡大する
+- [ ] 下部のチップに表示される値が、DSLの内容と一致している
 
 ### エラー処理
 
@@ -202,15 +255,11 @@ npm run lint    # ESLint
 ### コピーとダウンロード
 
 - [ ] DSLのコピー / ダウンロード（`dsl.json`）
-- [ ] Luauコードのコピー / ダウンロード（`ui.lua`）
 
-### Roblox Studio での確認
+### AIへの受け渡し
 
-- [ ] `ui.lua` を LocalScript として `StarterPlayer > StarterPlayerScripts` に配置
-- [ ] プレイ時に ScreenGui が生成される
-- [ ] サイドバー・パネル・タイトル・ボタンが表示される
-- [ ] ボタンのホバーでスケールアニメーションが動く
-- [ ] 異なる画面解像度でレイアウトが崩れない
+- [ ] DSLをAIコーディングツールに渡し、意図した見た目のUIが実装される
+- [ ] 同じDSLで別の画面を作っても、配色や余白が揃っている
 
 ---
 
@@ -222,4 +271,9 @@ MIT License
 
 ## 状態
 
-開発中です。ロジックの実装とエラー処理は一通り完了していますが、**Roblox Studio での実機検証は未実施**です。生成されたLuauコードは、本番のゲームに入れる前に必ずStudioで動作確認してください。
+開発中です。画像からDSLを生成し、プレビューで確認するまでの一連の流れは動作確認済みです。
+
+**今後の予定**
+
+- **UITheme ModuleScript の出力** — DSLをRoblox側のModuleScriptとして書き出し、各UIスクリプトから `require` して参照できるようにする。1箇所直せばゲーム全体の見た目が変わる状態を目指します
+- **必要な部品の選択** — 画像は「見た目」の指定に専念させ、「どんな部品が必要か」は別途チェックリストで指定できるようにする
