@@ -159,7 +159,7 @@ AIに任せているのは「画像を読んで、決まった形のJSONを返�
 | `Screen` | 基準解像度、スケールモード、セーフエリア |
 | `Layout` | Scale優先ポリシー、AnchorPoint既定値、AutomaticSize、制約 |
 | `Spacing` | グリッド単位、パディング、ギャップ、外側マージン |
-| `Color` | 背景・パネル・アクセントカラー |
+| `Color` | 面の色8種（背景 / サイドバー / パネル / 行 / 選択中 / 文字 / アクセント2種） |
 | `Typography` | フォントファミリ、見出し / 本文 / ボタンのサイズとウェイト |
 | `Visual` | 角丸のモードと値、UIStroke |
 | `Components` | Sidebar / SelectionList / DetailPanel / ActionArea / Icon の仕様 |

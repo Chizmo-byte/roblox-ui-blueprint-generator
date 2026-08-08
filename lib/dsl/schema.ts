@@ -28,10 +28,20 @@ export type SpacingConfig = {
 };
 
 export type ColorConfig = {
+  /** メニュー全体の後ろにある面。ゲーム世界が見えていればその色。 */
   Background: string;
+  /** サイドバー（カテゴリ切り替えの帯）の面。 */
+  Sidebar: string;
+  /** 一覧が乗る中央の大きな面。 */
+  Panel: string;
+  /** Panel の上に重なる、ハイライトされていない通常の行やカードの面。 */
+  Surface: string;
+  /** 選択中の項目のハイライト色。状態を表す色で、主ボタンの色ではない。 */
+  Selected: string;
+  /** 基本の文字色。 */
+  Text: string;
   AccentPositive: string;
   AccentGrowth: string;
-  Panel: string;
 };
 
 export type TypographyConfig = {
@@ -160,9 +170,13 @@ export const DefaultDSL: DSLBlueprint = {
   },
   Color: {
     Background: "#000000-#1E1E3C",
+    Sidebar: "#141221",
+    Panel: "#1C1A29",
+    Surface: "#242034",
+    Selected: "#F6C453",
+    Text: "#F2F0F7",
     AccentPositive: "#F6C453",
     AccentGrowth: "#A6FF4D",
-    Panel: "#1C1A29",
   },
   Typography: {
     FontFamily: "Gotham",

@@ -19,8 +19,8 @@ function clamp(value: number, minimum: number, maximum: number, fallback: number
 }
 
 /** HEX として妥当な値だけを通す。想定外の文字列は既定色に落とす。 */
-function color(value: string, fallback: string): string {
-  return HEX_COLOR.test(value.trim()) ? value.trim().toUpperCase() : fallback;
+function color(value: string | undefined, fallback: string): string {
+  return typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim().toUpperCase() : fallback;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -31,15 +31,111 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
+/** sRGB の相対輝度。0（黒）〜1（白）。 */
+function luminance(hex: string): number {
+  const channel = (value: number) => {
+    const v = value / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const [r, g, b] = hexToRgb(hex);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+/**
+ * 暗い文字と明るい文字のコントラストが釣り合う相対輝度。
+ *
+ * 白とのコントラスト (1.05)/(L+0.05) と黒とのコントラスト (L+0.05)/0.05 が
+ * 等しくなる点で、L ≒ 0.179。これより明るい背景には暗い文字を載せたほうが読める。
+ */
+const CONTRAST_PIVOT = 0.179;
+
+/** 背景が明るいかどうか。文字色や重ね色の向きを決めるのに使う。 */
+function isLight(hex: string): boolean {
+  return luminance(hex) > CONTRAST_PIVOT;
+}
+
+/** 2色を混ぜる。amount が 0 で from、1 で to。 */
+function mix(from: string, to: string, amount: number): string {
+  const [r1, g1, b1] = hexToRgb(from);
+  const [r2, g2, b2] = hexToRgb(to);
+  const channel = (a: number, b: number) => Math.round(a + (b - a) * amount);
+  return `#${[channel(r1, r2), channel(g1, g2), channel(b1, b2)]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+/** WCAG のコントラスト比。1（同色）〜21（黒と白）。 */
+function contrastRatio(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
+/** 本文は 4.5:1、補助テキストは 3:1 を目標にする（WCAG AA 相当）。 */
+const TEXT_TARGET = 4.5;
+const MUTED_TARGET = 3;
+
+/**
+ * ある背景色の上で読める文字色の組を返す。
+ *
+ * DSL は文字色を持たないため、背景の明るさから導出する。これがないと
+ * 明るい配色のとき、暗い配色向けに決め打ちした文字色が沈んで読めなくなる。
+ *
+ * まず見た目の柔らかい準黒・準白を試し、目標のコントラストに届かない場合だけ
+ * 純黒・純白へ落とす。純黒と純白の切り替えは、どんな背景でも 4.58:1 以上を
+ * 数学的に保証できるため、最後の砦として機能する。
+ */
+function textColorsFor(background: string): { text: string; muted: string; overlay: string } {
+  const light = isLight(background);
+  const soft = light ? "#26251f" : "#f2f0f7";
+  const hard = light ? "#000000" : "#ffffff";
+  const text = contrastRatio(soft, background) >= TEXT_TARGET ? soft : hard;
+
+  // 本文色を背景側へ寄せて補助色を作る。届かなければ寄せ幅を段階的に縮める。
+  let muted = text;
+  for (const amount of [0.42, 0.34, 0.26, 0.18, 0.1, 0]) {
+    muted = mix(text, background, amount);
+    if (contrastRatio(muted, background) >= MUTED_TARGET) break;
+  }
+
+  return {
+    text,
+    muted,
+    overlay: light ? "rgba(0, 0, 0, 0.055)" : "rgba(255, 255, 255, 0.055)",
+  };
+}
+
 export type ResolvedStyle = {
   /** CSS の background に直接指定できる値。グラデーションなら linear-gradient。 */
   background: string;
   /** グラデーションの場合の開始色。単色ならその色。 */
   backgroundBase: string;
   isGradient: boolean;
+  /** グラデーションの開始色と終了色。単色ならどちらも同じ値。 */
+  gradientFrom: string;
+  gradientTo: string;
   panel: string;
+  /** サイドバーの帯の面。 */
+  sidebar: string;
+  /** Panel の上に重なる、通常の行やカードの面。 */
+  surface: string;
+  /** 選択中の項目のハイライト色。 */
+  selected: string;
+  /** 選択中の項目に載せる文字色。 */
+  selectedText: string;
   accent: string;
   growth: string;
+  /** 文字色を DSL から取れたか。false なら背景から導出した値。 */
+  textFromDsl: boolean;
+  /** パネル上の文字色。パネルの明るさから導出する。 */
+  panelText: string;
+  panelTextMuted: string;
+  /** パネル上に重ねる行などの薄い面。 */
+  panelOverlay: string;
+  /** サイドバー上の文字色。背景の明るさから導出する。 */
+  sidebarText: string;
+  sidebarTextMuted: string;
+  /** アクセント色のボタンに載せる文字色。 */
+  accentText: string;
   /** "22%" 形式。 */
   sidebarWidth: string;
   /** "10px" 形式。 */
@@ -80,15 +176,24 @@ function resolveCornerRadius(corner: DSLBlueprint["Visual"]["CornerRadius"]): st
   return `${Math.round(clamp(value, 0, 64, 12))}px`;
 }
 
-function resolveBackground(value: string, fallback: string): Pick<ResolvedStyle, "background" | "backgroundBase" | "isGradient"> {
+function resolveBackground(
+  value: string,
+  fallback: string,
+): Pick<ResolvedStyle, "background" | "backgroundBase" | "isGradient" | "gradientFrom" | "gradientTo"> {
   const match = HEX_GRADIENT.exec(value.trim());
   if (match) {
     const from = match[1].toUpperCase();
     const to = match[2].toUpperCase();
-    return { background: `linear-gradient(180deg, ${from}, ${to})`, backgroundBase: from, isGradient: true };
+    return {
+      background: `linear-gradient(180deg, ${from}, ${to})`,
+      backgroundBase: from,
+      isGradient: true,
+      gradientFrom: from,
+      gradientTo: to,
+    };
   }
   const solid = color(value, fallback);
-  return { background: solid, backgroundBase: solid, isGradient: false };
+  return { background: solid, backgroundBase: solid, isGradient: false, gradientFrom: solid, gradientTo: solid };
 }
 
 function resolveWeight(weight: string): number {
@@ -114,11 +219,34 @@ export function resolveStyle(dsl: DSLBlueprint): ResolvedStyle {
   const accent = color(dsl.Color.AccentPositive, "#F6C453");
   const [r, g, b] = hexToRgb(accent);
 
+  const panel = color(dsl.Color.Panel, "#1C1A29");
+  const sidebar = color(dsl.Color.Sidebar, panel);
+  const surface = color(dsl.Color.Surface, panel);
+  const selected = color(dsl.Color.Selected, accent);
+  const panelColors = textColorsFor(surface);
+  const sidebarColors = textColorsFor(sidebar);
+
+  // DSL の文字色を優先する。ただし行の面に対して明らかに読めない場合は、
+  // 画面が破綻するのを避けるため導出した色に落とす。
+  const dslText = color(dsl.Color.Text, "");
+  const useDslText = dslText !== "" && contrastRatio(dslText, surface) >= MUTED_TARGET;
+
   return {
     ...background,
-    panel: color(dsl.Color.Panel, "#1C1A29"),
+    panel,
+    sidebar,
+    surface,
+    selected,
+    selectedText: textColorsFor(selected).text,
     accent,
     growth: color(dsl.Color.AccentGrowth, "#A6FF4D"),
+    textFromDsl: useDslText,
+    panelText: useDslText ? dslText : panelColors.text,
+    panelTextMuted: useDslText ? mix(dslText, surface, 0.4) : panelColors.muted,
+    panelOverlay: panelColors.overlay,
+    sidebarText: sidebarColors.text,
+    sidebarTextMuted: sidebarColors.muted,
+    accentText: textColorsFor(accent).text,
     sidebarWidth: `${sidebarWidth}%`,
     cornerRadius: resolveCornerRadius(dsl.Visual.CornerRadius),
     padding: Math.round(clamp(dsl.Spacing.PaddingDefault, 4, 64, 24)),

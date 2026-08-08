@@ -1,4 +1,5 @@
 import { DefaultDSL } from "@/lib/dsl/schema";
+import { FIELD_GUIDE } from "@/lib/dsl/fieldGuide";
 
 type ImageMimeType = "image/jpeg" | "image/png";
 type Provider = "openai-compatible" | "anthropic";
@@ -57,6 +58,8 @@ with the values adjusted to describe that image.
 
 TEMPLATE (copy this shape exactly, change only the values):
 ${JSON.stringify(DefaultDSL, null, 2)}
+
+${FIELD_GUIDE}
 
 Roblox UI rules to respect when choosing values:
 ${JSON.stringify(params.rules, null, 2)}
